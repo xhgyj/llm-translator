@@ -1,0 +1,23 @@
+{
+  "name": "@llm-translator/browser-extension",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "main": "dist/background.js",
+  "types": "dist/background.d.ts",
+  "scripts": {
+    "prebuild": "npm run -w @llm-translator/core build",
+    "build": "node -e \"require('node:fs').rmSync('dist',{recursive:true,force:true})\" && tsc -p tsconfig.json",
+    "pretest": "npm run -w @llm-translator/core build",
+    "test": "vitest run --environment jsdom"
+  },
+  "dependencies": {
+    "@llm-translator/core": "file:../../packages/core"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "jsdom": "file:../../packages/jsdom",
+    "typescript": "^5.6.3",
+    "vitest": "^2.1.8"
+  }
+}

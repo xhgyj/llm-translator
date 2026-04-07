@@ -1,0 +1,27 @@
+{
+  "manifest_version": 3,
+  "name": "LLM Translator",
+  "version": "0.1.0",
+  "description": "Translate selection and paragraph text with an OpenAI-compatible backend.",
+  "permissions": [
+    "storage"
+  ],
+  "host_permissions": [
+    "<all_urls>"
+  ],
+  "background": {
+    "service_worker": "dist/background.js",
+    "type": "module"
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "<all_urls>"
+      ],
+      "js": [
+        "dist/contentScript.js"
+      ],
+      "run_at": "document_idle"
+    }
+  ]
+}
