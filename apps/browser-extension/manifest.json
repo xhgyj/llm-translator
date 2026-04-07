@@ -4,11 +4,33 @@
   "version": "0.1.0",
   "description": "Translate selection and paragraph text with an OpenAI-compatible backend.",
   "permissions": [
-    "storage"
+    "storage",
+    "activeTab",
+    "tabs"
   ],
   "host_permissions": [
     "<all_urls>"
   ],
+  "action": {
+    "default_title": "LLM Translator",
+    "default_popup": "popup.html"
+  },
+  "commands": {
+    "translate-selection": {
+      "description": "Translate current selection",
+      "suggested_key": {
+        "default": "Ctrl+Shift+Y",
+        "mac": "Command+Shift+Y"
+      }
+    },
+    "translate-paragraph": {
+      "description": "Translate current paragraph",
+      "suggested_key": {
+        "default": "Ctrl+Shift+P",
+        "mac": "Command+Shift+P"
+      }
+    }
+  },
   "background": {
     "service_worker": "dist/background.js",
     "type": "module"

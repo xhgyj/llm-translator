@@ -4,3 +4,4 @@ node_modules/
 dist/
 coverage/
 .DS_Store
+apps/obsidian-plugin/main.js

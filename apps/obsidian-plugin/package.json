@@ -7,8 +7,8 @@
   "types": "dist/main.d.ts",
   "scripts": {
     "prebuild": "npm run -w @llm-translator/core build",
-    "build": "node -e \"require('node:fs').rmSync('dist',{recursive:true,force:true})\" && tsc -p tsconfig.build.json",
-    "pretest": "npm run -w @llm-translator/core build",
+    "build": "node scripts/build.mjs",
+    "pretest": "npm run build",
     "test": "vitest run"
   },
   "dependencies": {
@@ -16,6 +16,7 @@
   },
   "devDependencies": {
     "@types/node": "^22.0.0",
+    "esbuild": "^0.25.11",
     "typescript": "^5.6.3",
     "vitest": "^2.1.8"
   }

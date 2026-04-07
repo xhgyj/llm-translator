@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>LLM Translator</title>
+    <link rel="stylesheet" href="popup.css" />
+  </head>
+  <body>
+    <main class="popup">
+      <h1>LLM Translator</h1>
+      <label>
+        Base URL
+        <input id="baseUrl" type="text" />
+      </label>
+      <label>
+        Model
+        <input id="model" type="text" />
+      </label>
+      <label>
+        Target Lang
+        <input id="targetLang" type="text" />
+      </label>
+      <label>
+        Source Lang
+        <input id="sourceLang" type="text" />
+      </label>
+      <label>
+        API Key
+        <input id="apiKey" type="password" />
+      </label>
+      <div class="actions">
+        <button id="saveConfig" type="button">Save Config</button>
+        <button id="translateSelection" type="button">Translate Selection</button>
+        <button id="translateParagraph" type="button">Translate Paragraph</button>
+      </div>
+      <p id="statusText" class="status"></p>
+    </main>
+    <script src="dist/popup.js"></script>
+  </body>
+</html>

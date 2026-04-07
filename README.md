@@ -14,12 +14,11 @@ Monorepo for the MVP translation workflow used by the Obsidian plugin and browse
 ## Repo Layout
 
 - `packages/core` shared translation logic
-- `apps/obsidian-plugin` Obsidian adapter
-- `apps/browser-extension` browser adapter
+- `apps/obsidian-plugin` Obsidian plugin (manifest + runtime entry + adapter layer)
+- `apps/browser-extension` browser extension (background + content script + popup trigger/config)
 - `shared/glossary.json` default glossary data
 
 ## Docs
 
 - Setup: [docs/setup.md](docs/setup.md)
 - Manual smoke test: [docs/mvp-manual-smoke-test.md](docs/mvp-manual-smoke-test.md)
-

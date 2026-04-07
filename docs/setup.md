@@ -39,8 +39,8 @@ The shared glossary lives in `shared/glossary.json`.
 
 ## Run the MVP
 
-- Obsidian: install or load `apps/obsidian-plugin`, then set `baseUrl`, `model`, and required `targetLang` in the plugin config before translating
-- Browser: load `apps/browser-extension` as an unpacked extension after building, then set `baseUrl`, `model`, and required `targetLang` in the extension config before translating
+- Obsidian: build `apps/obsidian-plugin`, then load that folder as a community plugin (`manifest.json` + `main.js`). Configure `baseUrl`, `model`, and `targetLang` in the plugin setting tab, then run `Translate selected text` or `Translate current paragraph`.
+- Browser: load `apps/browser-extension` as an unpacked extension after building. Open the extension popup to configure `baseUrl`, `model`, and `targetLang`, then use popup buttons or keyboard commands to trigger translation.
 - For both, translate a selection or a paragraph and confirm the result appears below the source text
 
 ## Helpful files

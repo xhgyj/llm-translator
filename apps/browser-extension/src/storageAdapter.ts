@@ -1,4 +1,11 @@
-import type { Glossary, Settings, StorageAdapter, TranslateResponse } from "@llm-translator/core";
+import {
+  parseGlossary,
+  type Glossary,
+  type Settings,
+  type StorageAdapter,
+  type TranslateResponse,
+} from "@llm-translator/core";
+import sharedGlossaryFile from "../../../shared/glossary.json";
 
 type ChromeStorageRecord = {
   glossary?: Glossary;
@@ -11,10 +18,7 @@ type CachedTranslateResponse = {
   expiresAt: number;
 };
 
-const DEFAULT_GLOSSARY: Glossary = {
-  version: "1",
-  terms: [],
-};
+const DEFAULT_GLOSSARY: Glossary = parseGlossary(sharedGlossaryFile);
 
 const DEFAULT_SETTINGS: Settings = {
   promptVersion: "v1",
@@ -26,7 +30,11 @@ export function createChromeStorageAdapter(): StorageAdapter {
     async getGlossary() {
       const chromeApi = getChromeApi();
       const data = await chromeApi.storage.local.get("glossary");
-      return (data.glossary as Glossary | undefined) ?? DEFAULT_GLOSSARY;
+      try {
+        return data.glossary ? parseGlossary(data.glossary) : DEFAULT_GLOSSARY;
+      } catch {
+        return DEFAULT_GLOSSARY;
+      }
     },
     async saveGlossary(glossary) {
       const chromeApi = getChromeApi();

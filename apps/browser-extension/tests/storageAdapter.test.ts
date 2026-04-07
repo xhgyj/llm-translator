@@ -6,6 +6,26 @@ describe("createChromeStorageAdapter", () => {
     vi.restoreAllMocks();
   });
 
+  it("falls back to the shared default glossary when storage is empty", async () => {
+    const get = vi.fn(async () => ({}));
+
+    vi.stubGlobal("chrome", {
+      storage: {
+        local: {
+          get,
+          set: vi.fn(async () => undefined),
+          remove: vi.fn(async () => undefined),
+        },
+      },
+    });
+
+    const adapter = createChromeStorageAdapter();
+    const glossary = await adapter.getGlossary();
+
+    expect(glossary.version).toBe("1");
+    expect(glossary.terms.length).toBeGreaterThan(0);
+  });
+
   it("writes cache entries under per-key storage records", async () => {
     const set = vi.fn(async () => undefined);
     const get = vi.fn(async () => ({}));

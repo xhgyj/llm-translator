@@ -32,6 +32,17 @@ await build({
   legalComments: "none",
 });
 
+await build({
+  entryPoints: [resolve(appDir, "src/popup.ts")],
+  outfile: resolve(distDir, "popup.js"),
+  bundle: true,
+  format: "iife",
+  platform: "browser",
+  target: ["chrome114"],
+  sourcemap: false,
+  legalComments: "none",
+});
+
 execFileSync(
   process.execPath,
   ["node_modules/typescript/bin/tsc", "-p", "tsconfig.build.json"],

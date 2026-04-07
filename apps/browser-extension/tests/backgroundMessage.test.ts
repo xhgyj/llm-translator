@@ -8,9 +8,13 @@ const translateMock = vi.hoisted(() =>
   })),
 );
 
-vi.mock("@llm-translator/core", () => ({
-  translate: translateMock,
-}));
+vi.mock("@llm-translator/core", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@llm-translator/core")>();
+  return {
+    ...actual,
+    translate: translateMock,
+  };
+});
 
 describe("background message handling", () => {
   let listener:
