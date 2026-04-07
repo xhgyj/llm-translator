@@ -1,0 +1,53 @@
+flowchart TB
+  subgraph L1["1. 客户端层"]
+    direction LR
+    OUser["Obsidian 用户"]
+    BUser["浏览器用户"]
+    Popup["扩展 Popup"]
+  end
+
+  subgraph L2["2. 适配与编排层"]
+    direction LR
+    ORuntime["Obsidian pluginRuntime"]
+    BG["Extension background"]
+    CS["contentScriptRuntime"]
+  end
+
+  subgraph L3["3. 共享核心层（@llm-translator/core）"]
+    direction LR
+    T["translate.ts"]
+    G["glossary.ts"]
+    K["cacheKey + cache"]
+    R["retry.ts"]
+    C["openaiClient.ts"]
+  end
+
+  subgraph L4["4. 数据与外部服务"]
+    direction LR
+    OData["Obsidian 插件数据"]
+    CData["chrome.storage.local"]
+    Glossary["shared/glossary.json"]
+    LLM["OpenAI-Compatible LLM"]
+  end
+
+  OUser --> ORuntime
+  BUser --> BG
+  Popup --> BG
+  BG --> CS
+
+  ORuntime --> T
+  BG --> T
+
+  T --> G
+  T --> K
+  T --> R
+  R --> C
+  C --> LLM
+
+  ORuntime --> OData
+  BG --> CData
+  OData --> Glossary
+  CData --> Glossary
+
+  CS -. 展示翻译结果 .-> BUser
+  ORuntime -. 显示预览并可 Pin .-> OUser

@@ -20,28 +20,7 @@ Monorepo for the MVP translation workflow used by the Obsidian plugin and browse
 
 ## Architecture
 
-```mermaid
-flowchart LR
-  subgraph Clients
-    O["Obsidian Plugin<br/>apps/obsidian-plugin"]
-    B["Browser Extension<br/>apps/browser-extension"]
-  end
-
-  O --> C["Translation Core<br/>packages/core"]
-  B --> C
-
-  C --> S["Storage Adapter<br/>(cache + settings + glossary load)"]
-  S --> G["shared/glossary.json"]
-  S --> K["Translation Cache<br/>(local storage)"]
-
-  C --> L["LLM Gateway"]
-  L --> LL["Local LLM<br/>(Ollama/OpenAI-compatible)"]
-  L --> RL["Remote LLM API"]
-
-  C --> R["Render Layer"]
-  R --> T["Temporary Translation Layer<br/>(selection cleared => auto disappear)"]
-  R --> P["Pin to note/page or read-only popup"]
-```
+![alt text](image.png)
 
 ## Current UX
 

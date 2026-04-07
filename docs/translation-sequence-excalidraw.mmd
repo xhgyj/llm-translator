@@ -1,0 +1,20 @@
+sequenceDiagram
+  participant U as User
+  participant A as App Adapter
+  participant Core as @llm-translator/core
+  participant Store as StorageAdapter
+  participant LLM as OpenAI-Compatible LLM
+
+  U->>A: 选中文本并触发翻译
+  A->>Store: getSettings + getGlossary
+  A->>Core: translate(request, storage)
+  Core->>Store: getCache(cacheKey)
+  alt 命中缓存
+    Core-->>A: translatedText (fromCache=true)
+  else 未命中缓存
+    Core->>LLM: chat/completions
+    LLM-->>Core: translatedText
+    Core->>Store: setCache
+    Core-->>A: translatedText (fromCache=false)
+  end
+  A-->>U: 临时展示结果 / 可 Pin

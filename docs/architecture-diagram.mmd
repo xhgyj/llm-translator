@@ -1,0 +1,74 @@
+flowchart LR
+  %% LLM Translator MVP Architecture
+
+  subgraph U["User Surfaces"]
+    O_USER["Obsidian Editor<br/>Selection / Paragraph / PDF"]
+    B_USER["Web Page (DOM)<br/>Selection / Paragraph"]
+    POPUP_UI["Extension Popup<br/>Config + Manual Trigger"]
+    RESULT_UI["Read-only Result Window<br/>result.html"]
+  end
+
+  subgraph OB["Obsidian App (apps/obsidian-plugin)"]
+    O_RUNTIME["pluginRuntime.ts<br/>commands + context menu + settings"]
+    O_OVERLAY["temporaryOverlay.ts<br/>Preview + Pin to note"]
+    O_STORE["obsidianStorageAdapter.ts<br/>StorageAdapter impl"]
+  end
+
+  subgraph EXT["Browser Extension (apps/browser-extension)"]
+    BG["background.ts<br/>service worker orchestrator"]
+    CS["contentScriptRuntime.ts<br/>DOM placeholder + temporary layer + pin"]
+    CSTORE["storageAdapter.ts<br/>chrome StorageAdapter impl"]
+  end
+
+  subgraph CORE["Shared Translation Core (packages/core)"]
+    T["translate.ts<br/>normalize -> cache -> prompt -> retry"]
+    CK["cacheKey.ts + sha256.ts<br/>deterministic cache key"]
+    GL["glossary.ts (zod)<br/>parse + glossary prompt"]
+    OA["openaiClient.ts<br/>POST /chat/completions"]
+    RT["retry.ts<br/>exponential backoff"]
+    ER["errors.ts<br/>Config/Auth/RateLimit/Upstream"]
+  end
+
+  subgraph DATA["Data & Upstream"]
+    SG["shared/glossary.json<br/>default glossary"]
+    ODATA["Obsidian plugin data<br/>config + settings + cache + glossary"]
+    CDATA["chrome.storage.local<br/>config + settings + cache + glossary"]
+    LLM["OpenAI-compatible endpoint<br/>Ollama / remote provider"]
+  end
+
+  O_USER -->|Command / Context Menu| O_RUNTIME
+  O_RUNTIME -->|translate(request)| T
+  O_RUNTIME -->|show preview| O_OVERLAY
+  O_RUNTIME -->|get/set settings + cache + glossary| O_STORE
+  O_STORE --> ODATA
+  O_STORE -. default glossary .-> SG
+  O_OVERLAY -->|Pin| O_USER
+
+  POPUP_UI -->|ui:get-config / ui:set-config| BG
+  B_USER -->|Context Menu / Shortcuts| BG
+  BG -->|trigger-translation| CS
+  CS -->|translate message| BG
+  BG -->|translate(request)| T
+  BG -->|fallback for PDF/web| RESULT_UI
+  BG -->|get/set settings + cache + glossary| CSTORE
+  CSTORE --> CDATA
+  CSTORE -. default glossary .-> SG
+  CS -->|temporary layer + pin| B_USER
+
+  T --> CK
+  T --> GL
+  T --> RT
+  T --> OA
+  OA -->|HTTP| LLM
+  OA --> ER
+  RT --> OA
+
+  classDef ui fill:#FFF4E6,stroke:#E08A00,color:#3A2A00,stroke-width:1.5px;
+  classDef app fill:#EAF4FF,stroke:#2F6FEB,color:#0A2D66,stroke-width:1.5px;
+  classDef core fill:#EAFBF1,stroke:#1F9D55,color:#073B24,stroke-width:1.5px;
+  classDef data fill:#F5F3FF,stroke:#6D5BD0,color:#2D2468,stroke-width:1.5px;
+
+  class O_USER,B_USER,POPUP_UI,RESULT_UI ui;
+  class O_RUNTIME,O_OVERLAY,O_STORE,BG,CS,CSTORE app;
+  class T,CK,GL,OA,RT,ER core;
+  class SG,ODATA,CDATA,LLM data;
