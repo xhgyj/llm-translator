@@ -17,4 +17,29 @@ describe("BackfillStore", () => {
     expect(resolved?.status).toBe("resolved");
     expect(store.get(job.jobId)?.status).toBe("resolved");
   });
+
+  it("marks pending jobs failed and keeps job tracking data", () => {
+    const store = new BackfillStore();
+
+    const job = store.create("placeholder-2");
+
+    expect(job.status).toBe("pending");
+    expect(store.get(job.jobId)).toMatchObject({
+      jobId: job.jobId,
+      placeholderId: "placeholder-2",
+      status: "pending",
+    });
+
+    const failed = store.fail(job.jobId, new Error("upstream unavailable"));
+
+    expect(failed?.jobId).toBe(job.jobId);
+    expect(failed?.status).toBe("failed");
+    expect(failed?.errorMessage).toBe("upstream unavailable");
+    expect(store.get(job.jobId)).toMatchObject({
+      jobId: job.jobId,
+      placeholderId: "placeholder-2",
+      status: "failed",
+      errorMessage: "upstream unavailable",
+    });
+  });
 });

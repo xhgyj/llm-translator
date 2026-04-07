@@ -59,4 +59,36 @@ describe("ObsidianTranslatorController.translateParagraph", () => {
     expect(editor.replacePlaceholder).toHaveBeenCalledWith("paragraph-placeholder", "你好，段落");
     expect(editor.markPlaceholderFailed).not.toHaveBeenCalled();
   });
+
+  it("marks the paragraph placeholder failed when translation throws", async () => {
+    const translateFn = vi.fn(async () => {
+      throw new Error("upstream unavailable");
+    });
+
+    const editor = {
+      getSelectionText: () => "",
+      getParagraphText: () => "Hello paragraph",
+      insertSelectionPlaceholder: vi.fn(),
+      insertParagraphPlaceholder: vi.fn(() => "paragraph-placeholder"),
+      replacePlaceholder: vi.fn(),
+      markPlaceholderFailed: vi.fn(),
+    };
+
+    const controller = new ObsidianTranslatorController(
+      editor,
+      createStorage(),
+      { baseUrl: "http://localhost:11434/v1", model: "qwen2.5", targetLang: "zh" },
+      { translateFn },
+    );
+
+    await controller.translateParagraph();
+
+    expect(editor.insertParagraphPlaceholder).toHaveBeenCalledWith("Translating...");
+    expect(editor.replacePlaceholder).not.toHaveBeenCalled();
+    expect(editor.markPlaceholderFailed).toHaveBeenCalledWith(
+      "paragraph-placeholder",
+      "upstream unavailable",
+    );
+    expect(translateFn).toHaveBeenCalledTimes(1);
+  });
 });
