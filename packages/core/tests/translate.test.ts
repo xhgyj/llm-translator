@@ -1,5 +1,10 @@
 import { describe, expect, it, vi } from "vitest";
-import { ConfigError, translate, type StorageAdapter } from "../src";
+import {
+  ConfigError,
+  UpstreamError,
+  translate,
+  type StorageAdapter,
+} from "../src";
 
 type StoredCacheEntry = {
   value: unknown;
@@ -104,6 +109,26 @@ describe("translate", () => {
     const storage = {
       ...createMemoryStorage(),
       getSettings: async () => ({ promptVersion: "   ", cacheTtlMs: -1 }),
+    } satisfies StorageAdapter;
+
+    await expect(
+      translate(
+        {
+          text: "hello",
+          sourceLang: "auto",
+          targetLang: "zh",
+          model: "qwen2.5",
+          baseUrl: "http://localhost:11434/v1",
+        },
+        { storage, fetchImpl: vi.fn() },
+      ),
+    ).rejects.toBeInstanceOf(ConfigError);
+  });
+
+  it("throws when settings payload is malformed", async () => {
+    const storage = {
+      ...createMemoryStorage(),
+      getSettings: async () => ({ promptVersion: 123, cacheTtlMs: "oops" } as never),
     } satisfies StorageAdapter;
 
     await expect(
@@ -331,6 +356,32 @@ describe("translate", () => {
     expect(fetchMock).toHaveBeenCalledTimes(2);
   });
 
+  it.each([400, 404])("does not retry deterministic %s errors", async (status) => {
+    const storage = createMemoryStorage();
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: false,
+      status,
+      text: async () => "not found",
+      json: async () => {
+        throw new Error("unexpected json read");
+      },
+    });
+
+    await expect(
+      translate(
+        {
+          text: "hello",
+          sourceLang: "auto",
+          targetLang: "zh",
+          model: "qwen2.5",
+          baseUrl: "http://localhost:11434/v1",
+        },
+        { storage, fetchImpl: fetchMock },
+      ),
+    ).rejects.toBeInstanceOf(UpstreamError);
+
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
   it("treats baseUrl trailing slashes as the same cache entry", async () => {
     const storage = createMemoryStorage();
     const fetchMock = vi.fn().mockResolvedValue(createFetchResponse("你好"));
@@ -361,3 +412,4 @@ describe("translate", () => {
     expect(fetchMock).toHaveBeenCalledTimes(1);
   });
 });
+

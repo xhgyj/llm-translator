@@ -56,6 +56,9 @@ export async function callOpenAICompatible(
     const suffix = detail ? `: ${detail}` : "";
     throw new UpstreamError(
       `Translation upstream returned status ${response.status}${suffix}`,
+      {
+        status: response.status,
+      },
     );
   }
 

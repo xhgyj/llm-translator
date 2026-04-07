@@ -11,4 +11,11 @@ export class AuthError extends TranslatorError {}
 
 export class RateLimitError extends TranslatorError {}
 
-export class UpstreamError extends TranslatorError {}
+export class UpstreamError extends TranslatorError {
+  readonly status?: number;
+
+  constructor(message: string, options?: { cause?: unknown; status?: number }) {
+    super(message, options);
+    this.status = options?.status;
+  }
+}

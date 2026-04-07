@@ -1,6 +1,6 @@
 import { createCacheKey } from "./cacheKey.js";
 import { buildGlossaryPrompt } from "./glossary.js";
-import { AuthError, ConfigError } from "./errors.js";
+import { AuthError, ConfigError, UpstreamError } from "./errors.js";
 import { callOpenAICompatible } from "./openaiClient.js";
 import { retry } from "./retry.js";
 import type {
@@ -19,26 +19,25 @@ export async function translate(
   req: TranslateRequest,
   deps: TranslateDeps,
 ): Promise<TranslateResponse> {
-  validateRequest(req);
-  const normalizedBaseUrl = normalizeBaseUrl(req.baseUrl);
+  const normalizedRequest = normalizeRequest(req);
 
   const [settings, glossary] = await Promise.all([
     deps.storage.getSettings(),
     deps.storage.getGlossary(),
   ]);
-  validateSettings(settings);
+  const normalizedSettings = normalizeSettings(settings);
 
   const cacheKey = createCacheKey({
-    text: req.text,
-    sourceLang: req.sourceLang,
-    targetLang: req.targetLang,
-    model: req.model,
-    baseUrl: normalizedBaseUrl,
+    text: normalizedRequest.text,
+    sourceLang: normalizedRequest.sourceLang,
+    targetLang: normalizedRequest.targetLang,
+    model: normalizedRequest.model,
+    baseUrl: normalizedRequest.baseUrl,
     glossaryVersion: glossary.version,
-    promptVersion: settings.promptVersion,
+    promptVersion: normalizedSettings.promptVersion,
   });
 
-  if (!req.forceRefresh) {
+  if (!normalizedRequest.forceRefresh) {
     const cached = await deps.storage.getCache(cacheKey);
     if (cached) {
       return {
@@ -49,15 +48,15 @@ export async function translate(
     }
   }
 
-  const messages = buildMessages(req, glossary);
+  const messages = buildMessages(normalizedRequest, glossary);
   const startedAt = Date.now();
 
   const translatedText = await retry(
     () =>
       callOpenAICompatible({
-        baseUrl: normalizedBaseUrl,
-        model: req.model,
-        apiKey: req.apiKey,
+        baseUrl: normalizedRequest.baseUrl,
+        model: normalizedRequest.model,
+        apiKey: normalizedRequest.apiKey,
         messages,
         fetchImpl: deps.fetchImpl,
       }),
@@ -65,9 +64,7 @@ export async function translate(
       maxAttempts: 3,
       delayMs: 50,
       factor: 2,
-      shouldRetry: (error) =>
-        !(error instanceof ConfigError) &&
-        !(error instanceof AuthError),
+      shouldRetry: isRetryableError,
     },
   );
 
@@ -77,49 +74,105 @@ export async function translate(
     latencyMs: Date.now() - startedAt,
   };
 
-  await deps.storage.setCache(cacheKey, response, settings.cacheTtlMs);
+  await deps.storage.setCache(cacheKey, response, normalizedSettings.cacheTtlMs);
 
   return response;
 }
 
-function normalizeBaseUrl(baseUrl: string): string {
-  return baseUrl.trim().replace(/\/+$/, "");
+type NormalizedTranslateRequest = {
+  text: string;
+  sourceLang: string;
+  targetLang: string;
+  model: string;
+  baseUrl: string;
+  apiKey?: string;
+  forceRefresh?: boolean;
+};
+
+function normalizeRequest(req: TranslateRequest): NormalizedTranslateRequest {
+  return {
+    text: normalizeTextField(req.text, "text"),
+    sourceLang: normalizeStringField(req.sourceLang, "sourceLang"),
+    targetLang: normalizeStringField(req.targetLang, "targetLang"),
+    model: normalizeStringField(req.model, "model"),
+    baseUrl: normalizeBaseUrl(req.baseUrl),
+    apiKey: normalizeOptionalStringField(req.apiKey),
+    forceRefresh: req.forceRefresh,
+  };
 }
 
-function validateRequest(req: TranslateRequest): void {
-  if (!req.text.trim()) {
-    throw new ConfigError("text is required");
-  }
-
-  if (!req.sourceLang.trim()) {
-    throw new ConfigError("sourceLang is required");
-  }
-
-  if (!req.targetLang.trim()) {
-    throw new ConfigError("targetLang is required");
-  }
-
-  if (!req.model.trim()) {
-    throw new ConfigError("model is required");
-  }
-
-  if (!req.baseUrl.trim()) {
-    throw new ConfigError("baseUrl is required");
-  }
+function normalizeSettings(settings: Settings): Settings {
+  return {
+    promptVersion: normalizeStringField(settings.promptVersion, "promptVersion"),
+    cacheTtlMs: normalizeCacheTtlMs(settings.cacheTtlMs),
+  };
 }
 
-function validateSettings(settings: Settings): void {
-  if (!settings.promptVersion.trim()) {
-    throw new ConfigError("promptVersion is required");
+function normalizeBaseUrl(baseUrl: unknown): string {
+  const value = normalizeStringField(baseUrl, "baseUrl");
+  return value.replace(/\/+$/, "");
+}
+
+function normalizeStringField(value: unknown, field: string): string {
+  if (typeof value !== "string") {
+    throw new ConfigError(`${field} must be a string`);
   }
 
-  if (!Number.isFinite(settings.cacheTtlMs) || settings.cacheTtlMs < 0) {
+  const trimmed = value.trim();
+  if (!trimmed) {
+    throw new ConfigError(`${field} is required`);
+  }
+
+  return trimmed;
+}
+
+function normalizeOptionalStringField(value: unknown): string | undefined {
+  if (value === undefined) {
+    return undefined;
+  }
+
+  if (typeof value !== "string") {
+    throw new ConfigError("apiKey must be a string");
+  }
+
+  const trimmed = value.trim();
+  return trimmed ? trimmed : undefined;
+}
+
+function normalizeTextField(value: unknown, field: string): string {
+  if (typeof value !== "string") {
+    throw new ConfigError(`${field} must be a string`);
+  }
+
+  if (!value.trim()) {
+    throw new ConfigError(`${field} is required`);
+  }
+
+  return value;
+}
+
+function normalizeCacheTtlMs(value: unknown): number {
+  if (typeof value !== "number" || !Number.isFinite(value) || value < 0) {
     throw new ConfigError("cacheTtlMs must be a non-negative number");
   }
+
+  return value;
+}
+
+function isRetryableError(error: unknown): boolean {
+  if (error instanceof ConfigError || error instanceof AuthError) {
+    return false;
+  }
+
+  if (error instanceof UpstreamError) {
+    return error.status === undefined || error.status >= 500;
+  }
+
+  return true;
 }
 
 function buildMessages(
-  req: TranslateRequest,
+  req: NormalizedTranslateRequest,
   glossary: { version: string; terms: Array<{ source: string; target: string }> },
 ) {
   const systemParts = [
