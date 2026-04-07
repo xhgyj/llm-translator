@@ -1,2 +1,6 @@
 .worktrees/
 worktrees/
+node_modules/
+dist/
+coverage/
+.DS_Store
