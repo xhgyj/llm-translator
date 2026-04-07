@@ -6,15 +6,17 @@ describe("parseGlossary", () => {
     const input = {
       version: "1",
       terms: [
-        { source: "fine-tuning", target: "微调" },
+        { source: "fine-tuning", target: "micro-tuning" },
         { source: "", target: "x" },
+        { source: "   ", target: "whitespace-source" },
+        { source: "token", target: "   " },
       ],
     };
 
     const parsed = parseGlossary(input);
 
     expect(parsed.version).toBe("1");
-    expect(parsed.terms).toEqual([{ source: "fine-tuning", target: "微调" }]);
+    expect(parsed.terms).toEqual([{ source: "fine-tuning", target: "micro-tuning" }]);
   });
 });
 
@@ -22,9 +24,14 @@ describe("buildGlossaryPrompt", () => {
   it("formats glossary lines for model instructions", () => {
     const prompt = buildGlossaryPrompt({
       version: "1",
-      terms: [{ source: "Transformer", target: "Transformer（变换器）" }],
+      terms: [{ source: "Transformer", target: "Transformer (transformer model)" }],
     });
 
-    expect(prompt).toContain("Transformer => Transformer（变换器）");
+    expect(prompt).toBe(
+      [
+        "Glossary (must prefer these translations):",
+        "Transformer => Transformer (transformer model)",
+      ].join("\n"),
+    );
   });
 });

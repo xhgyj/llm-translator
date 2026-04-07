@@ -1,8 +1,8 @@
 import { z } from "zod";
 
 const GlossaryTermSchema = z.object({
-  source: z.string().min(1),
-  target: z.string().min(1),
+  source: z.string().trim().min(1),
+  target: z.string().trim().min(1),
 });
 
 const RawGlossarySchema = z.object({
@@ -32,5 +32,7 @@ export function parseGlossary(input: unknown): Glossary {
 }
 
 export function buildGlossaryPrompt(glossary: Glossary): string {
-  return glossary.terms.map((term) => `${term.source} => ${term.target}`).join("\n");
+  const lines = glossary.terms.map((term) => `${term.source} => ${term.target}`);
+
+  return ["Glossary (must prefer these translations):", ...lines].join("\n");
 }
