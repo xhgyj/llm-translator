@@ -7,7 +7,7 @@
   ],
   "scripts": {
     "check:docs": "node -e \"const fs=require('node:fs');const paths=['README.md','docs/setup.md','docs/mvp-manual-smoke-test.md'];const missing=paths.filter((p)=>!fs.existsSync(p));if(missing.length){console.error('Missing docs files:');for(const file of missing) console.error(file);process.exit(1);}\"",
-    "build": "npm run --workspaces build",
-    "test": "npm run --workspaces test"
+    "build": "npm run -w @llm-translator/core build && npm run -w @llm-translator/browser-extension build && npm run -w @llm-translator/obsidian-plugin build",
+    "test": "npm run -w @llm-translator/core build && npm run -w @llm-translator/core test && npm run -w @llm-translator/browser-extension build && npm run -w @llm-translator/browser-extension test && npm run -w @llm-translator/obsidian-plugin build && npm run -w @llm-translator/obsidian-plugin test"
   }
 }
