@@ -79,5 +79,17 @@ describe("background message handling", () => {
     });
 
     expect(translateMock).toHaveBeenCalledTimes(1);
+    expect(translateMock).toHaveBeenCalledWith(
+      {
+        text: "Hello background",
+        sourceLang: "auto",
+        targetLang: "zh",
+        model: "qwen2.5",
+        baseUrl: "http://localhost:11434/v1",
+      },
+      expect.objectContaining({
+        storage: expect.any(Object),
+      }),
+    );
   });
 });

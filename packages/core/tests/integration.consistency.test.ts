@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
-import { parseGlossary } from "../src";
+import { parseGlossary } from "../src/index.js";
 
 const glossaryPath = fileURLToPath(new URL("../../../shared/glossary.json", import.meta.url));
 const sharedGlossary = JSON.parse(readFileSync(glossaryPath, "utf8")) as unknown;
