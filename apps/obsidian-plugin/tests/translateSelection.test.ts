@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import type { StorageAdapter, TranslateRequest, TranslateResponse } from "@llm-translator/core";
+import { BackfillStore } from "../src/backfill";
 import { ObsidianTranslatorController } from "../src/main";
 
 function createStorage(): StorageAdapter {
@@ -37,12 +38,14 @@ describe("ObsidianTranslatorController.translateSelection", () => {
       replacePlaceholder: vi.fn(),
       markPlaceholderFailed: vi.fn(),
     };
+    const backfillStore = new BackfillStore();
+    const createSpy = vi.spyOn(backfillStore, "create");
 
     const controller = new ObsidianTranslatorController(
       editor,
       createStorage(),
       { baseUrl: "http://localhost:11434/v1", model: "qwen2.5", targetLang: "zh" },
-      { translateFn },
+      { translateFn, backfillStore },
     );
 
     await controller.translateSelection();
@@ -59,6 +62,18 @@ describe("ObsidianTranslatorController.translateSelection", () => {
     });
     expect(editor.replacePlaceholder).toHaveBeenCalledWith("selection-placeholder", "你好");
     expect(editor.markPlaceholderFailed).not.toHaveBeenCalled();
+    expect(createSpy).toHaveBeenCalledTimes(1);
+
+    const job = createSpy.mock.results[0]?.value;
+    expect(createSpy.mock.calls[0]?.[0]).toBe("selection-placeholder");
+    expect(job?.placeholderId).toBe("selection-placeholder");
+    expect(job?.jobId).toBeTypeOf("string");
+    expect(backfillStore.get(job.jobId)).toMatchObject({
+      jobId: job.jobId,
+      placeholderId: "selection-placeholder",
+      status: "resolved",
+      translatedText: "你好",
+    });
   });
 
   it("marks the placeholder failed when translation throws", async () => {

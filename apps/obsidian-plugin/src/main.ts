@@ -4,8 +4,8 @@ import {
   type TranslateRequest,
   type TranslateResponse,
 } from "@llm-translator/core";
-import { BackfillStore } from "./backfill";
-import type { EditorAdapter } from "./editorAdapter";
+import { BackfillStore } from "./backfill.js";
+import type { EditorAdapter } from "./editorAdapter.js";
 
 export type TranslateFn = (
   request: TranslateRequest,
