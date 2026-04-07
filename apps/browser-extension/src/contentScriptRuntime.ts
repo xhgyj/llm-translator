@@ -257,21 +257,45 @@ function resolveTemporaryLayer(
   translatedText: string,
   options: { allowPin: boolean },
 ): void {
+  ensureTemporaryLayerStyles();
   replacePlaceholder(placeholder, translatedText);
+  placeholder.classList.add("llm-translator-card");
+  placeholder.innerHTML = "";
+
+  const header = document.createElement("div");
+  header.className = "llm-translator-card-header";
+  header.textContent = "Translation Preview";
+  placeholder.append(header);
+
+  const translatedBlock = document.createElement("pre");
+  translatedBlock.className = "llm-translator-card-body";
+  translatedBlock.textContent = translatedText;
+  placeholder.append(translatedBlock);
 
   if (options.allowPin) {
     const pinButton = document.createElement("button");
     pinButton.type = "button";
     pinButton.setAttribute("data-llm-translator-pin", "true");
+    pinButton.className = "llm-translator-btn llm-translator-btn-primary";
     pinButton.textContent = "Pin to page";
     pinButton.addEventListener("click", () => {
       const pinned = document.createElement("div");
       pinned.setAttribute("data-llm-translator-pinned", "true");
-      pinned.textContent = translatedText;
+      pinned.className = "llm-translator-card llm-translator-pinned";
+      pinned.innerHTML = `
+        <div class="llm-translator-card-header">Pinned Translation</div>
+      `;
+      const pinnedBody = document.createElement("pre");
+      pinnedBody.className = "llm-translator-card-body";
+      pinnedBody.textContent = translatedText;
+      pinned.append(pinnedBody);
       sourceNode.insertAdjacentElement("afterend", pinned);
       placeholder.remove();
     });
-    placeholder.append(document.createTextNode(" "), pinButton);
+    const actions = document.createElement("div");
+    actions.className = "llm-translator-actions";
+    actions.append(pinButton);
+    placeholder.append(actions);
   }
 
   const onSelectionChange = () => {
@@ -285,6 +309,101 @@ function resolveTemporaryLayer(
   };
 
   document.addEventListener("selectionchange", onSelectionChange);
+}
+
+function ensureTemporaryLayerStyles(): void {
+  if (document.getElementById("llm-translator-temporary-styles")) {
+    return;
+  }
+
+  const style = document.createElement("style");
+  style.id = "llm-translator-temporary-styles";
+  style.textContent = `
+    .llm-translator-card {
+      margin-top: 8px;
+      border-radius: 12px;
+      border: 1px solid rgba(148, 163, 184, 0.45);
+      background: #ffffff;
+      box-shadow: 0 14px 36px rgba(2, 6, 23, 0.16);
+      color: #0f172a;
+      overflow: hidden;
+      animation: llmTranslatorRise 180ms ease-out;
+    }
+    .llm-translator-card-header {
+      padding: 10px 12px;
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: 0.2px;
+      border-bottom: 1px solid rgba(148, 163, 184, 0.28);
+      background: linear-gradient(125deg, #f8fafc, #ffffff);
+    }
+    .llm-translator-card-body {
+      margin: 0;
+      padding: 12px;
+      white-space: pre-wrap;
+      word-break: break-word;
+      font-size: 13px;
+      line-height: 1.6;
+    }
+    .llm-translator-actions {
+      display: flex;
+      justify-content: flex-end;
+      padding: 0 12px 12px;
+    }
+    .llm-translator-btn {
+      border-radius: 8px;
+      font-size: 12px;
+      line-height: 1;
+      padding: 8px 10px;
+      cursor: pointer;
+      border: 1px solid transparent;
+    }
+    .llm-translator-btn-primary {
+      color: #ffffff;
+      background: #2563eb;
+      border-color: #2563eb;
+    }
+    .llm-translator-btn-primary:hover {
+      background: #1d4ed8;
+      border-color: #1d4ed8;
+    }
+    .llm-translator-pinned {
+      margin-top: 8px;
+    }
+    @keyframes llmTranslatorRise {
+      from {
+        opacity: 0;
+        transform: translateY(6px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+    @media (prefers-color-scheme: dark) {
+      .llm-translator-card {
+        background: #0f172a;
+        border-color: rgba(148, 163, 184, 0.28);
+        box-shadow: 0 20px 48px rgba(2, 6, 23, 0.45);
+        color: #e2e8f0;
+      }
+      .llm-translator-card-header {
+        border-bottom-color: rgba(148, 163, 184, 0.24);
+        background: linear-gradient(125deg, #111827, #0f172a);
+      }
+      .llm-translator-btn-primary {
+        background: #3b82f6;
+        border-color: #3b82f6;
+      }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      .llm-translator-card {
+        animation: none;
+      }
+    }
+  `;
+
+  document.head.append(style);
 }
 
 function getChromeApi(): ChromeApi | undefined {

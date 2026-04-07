@@ -207,7 +207,7 @@ describe("translateParagraphFromPage", () => {
         baseUrl: "http://localhost:11434/v1",
       },
     });
-    expect(document.body.querySelector("[data-llm-translator-placeholder='true']")?.textContent).toBe(
+    expect(document.body.querySelector("[data-llm-translator-placeholder='true']")?.textContent).toContain(
       "Paragraph translated",
     );
   });

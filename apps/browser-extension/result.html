@@ -8,14 +8,17 @@
   </head>
   <body>
     <main class="result">
-      <h1>Read-only Translation</h1>
-      <section>
+      <header class="result-header">
+        <h1>Read-only Translation</h1>
+        <span class="result-tag">PDF Mode</span>
+      </header>
+      <section class="result-block result-source">
         <h2>Source</h2>
-        <pre id="sourceText"></pre>
+        <pre id="sourceText" class="result-text"></pre>
       </section>
-      <section>
+      <section class="result-block result-translated">
         <h2>Translated</h2>
-        <pre id="translatedText"></pre>
+        <pre id="translatedText" class="result-text result-text-emphasis"></pre>
       </section>
     </main>
     <script src="dist/result.js"></script>
