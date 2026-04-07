@@ -7,7 +7,7 @@ Use this checklist after setup or a build change.
 1. Open Obsidian with the MVP plugin loaded.
 2. Select a short sentence.
 3. Trigger translation.
-4. Confirm a `translating...` placeholder appears first.
+4. Confirm a `Translating...` placeholder appears first.
 5. Confirm the translated text is inserted below the source text.
 6. Trigger the same translation again.
 7. Confirm the cached path is used and the result still appears correctly.
@@ -29,4 +29,3 @@ Use this checklist after setup or a build change.
 - Obsidian selection translation works
 - Browser selection or paragraph translation works
 - Placeholder backfill completes without leaving stale placeholders
-
