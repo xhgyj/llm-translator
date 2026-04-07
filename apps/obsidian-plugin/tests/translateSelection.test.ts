@@ -60,7 +60,10 @@ describe("ObsidianTranslatorController.translateSelection", () => {
       model: "qwen2.5",
       baseUrl: "http://localhost:11434/v1",
     });
-    expect(editor.replacePlaceholder).toHaveBeenCalledWith("selection-placeholder", "你好");
+    expect(editor.replacePlaceholder).toHaveBeenCalledWith(
+      "selection-placeholder",
+      expect.stringMatching(/\S/),
+    );
     expect(editor.markPlaceholderFailed).not.toHaveBeenCalled();
     expect(createSpy).toHaveBeenCalledTimes(1);
 

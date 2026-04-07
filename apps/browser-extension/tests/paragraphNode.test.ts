@@ -30,6 +30,8 @@ describe("getParagraphNodeFromSelection", () => {
     selection?.removeAllRanges();
     selection?.addRange(range);
 
-    expect(getParagraphNodeFromSelection(selection)?.tagName).toBe("LI");
+    const paragraphNode = getParagraphNodeFromSelection(selection);
+    expect(paragraphNode).not.toBeNull();
+    expect(paragraphNode!.tagName).toBe("LI");
   });
 });

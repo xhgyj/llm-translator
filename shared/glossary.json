@@ -1,0 +1,17 @@
+{
+  "version": "1",
+  "terms": [
+    {
+      "source": "LLM",
+      "target": "large language model"
+    },
+    {
+      "source": "glossary",
+      "target": "term list"
+    },
+    {
+      "source": "translation",
+      "target": "translation output"
+    }
+  ]
+}
