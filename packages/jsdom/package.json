@@ -1,6 +1,0 @@
-{
-  "name": "jsdom",
-  "version": "25.0.1-shim",
-  "type": "module",
-  "main": "index.js"
-}
