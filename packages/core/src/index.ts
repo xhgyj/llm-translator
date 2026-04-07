@@ -1,2 +1,2 @@
-export { createCacheKey } from "./cacheKey";
-export type { CacheKeyInput } from "./cacheKey";
+export { createCacheKey } from "./cacheKey.js";
+export type { CacheKeyInput } from "./cacheKey.js";
