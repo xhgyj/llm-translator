@@ -1,8 +1,9 @@
-import { Notice, Plugin, PluginSettingTab, Setting, MarkdownView } from "obsidian";
-import type { Settings } from "@llm-translator/core";
-import { ObsidianTranslatorController, type ObsidianTranslatorConfig } from "./main.js";
+import { translate, type Settings } from "@llm-translator/core";
+import { Notice, Plugin, PluginSettingTab, Setting, MarkdownView, Menu } from "obsidian";
+import type { Editor } from "obsidian";
 import { ObsidianEditorAdapter } from "./obsidianEditorAdapter.js";
 import { ObsidianStorageAdapter, type ObsidianStorageState } from "./obsidianStorageAdapter.js";
+import { showTemporaryTranslationOverlay } from "./temporaryOverlay.js";
 
 type PluginConfig = {
   baseUrl: string;
@@ -15,6 +16,15 @@ type PluginConfig = {
 
 type PluginState = ObsidianStorageState & {
   config: PluginConfig;
+};
+
+type MenuItemLike = {
+  setTitle(title: string): MenuItemLike;
+  onClick(callback: () => void): MenuItemLike;
+};
+
+type MenuLike = {
+  addItem(builder: (item: MenuItemLike) => void): void;
 };
 
 const DEFAULT_CONFIG: PluginConfig = {
@@ -53,7 +63,7 @@ export default class LlmTranslatorPlugin extends Plugin {
       id: "translate-selection",
       name: "Translate selected text",
       callback: () => {
-        void this.runTranslation("selection");
+        void this.runSelectionTranslationCommand();
       },
     });
 
@@ -61,10 +71,11 @@ export default class LlmTranslatorPlugin extends Plugin {
       id: "translate-paragraph",
       name: "Translate current paragraph",
       callback: () => {
-        void this.runTranslation("paragraph");
+        void this.runParagraphTranslationCommand();
       },
     });
 
+    this.registerContextMenus();
     this.addSettingTab(new TranslatorSettingTab(this));
   }
 
@@ -83,38 +94,159 @@ export default class LlmTranslatorPlugin extends Plugin {
     await this.saveData(this.state);
   }
 
-  private async runTranslation(mode: "selection" | "paragraph"): Promise<void> {
-    const markdownView = this.app.workspace.getActiveViewOfType(MarkdownView);
-    const editor = markdownView?.editor;
+  private registerContextMenus(): void {
+    const workspace = this.app.workspace as {
+      on(
+        event: "editor-menu",
+        callback: (menu: MenuLike, editor: Editor) => void,
+      ): unknown;
+    };
 
+    this.registerEvent(
+      workspace.on("editor-menu", (menu, editor) => {
+        const selectedText = editor.getSelection().trim();
+        if (!selectedText) {
+          return;
+        }
+
+        menu.addItem((item) => {
+          item.setTitle("Translate selected text").onClick(() => {
+            void this.translateAndShowOverlay({
+              sourceText: selectedText,
+              dismissOnSelectionClear: true,
+              allowPin: true,
+              onPin: (translatedText) => {
+                this.pinToEditor(editor, translatedText);
+              },
+            });
+          });
+        });
+      }),
+    );
+
+    this.registerDomEvent(document, "contextmenu", (event: Event) => {
+      const mouseEvent = event as MouseEvent;
+      const target = mouseEvent.target as HTMLElement | null;
+      if (!isPdfTarget(target)) {
+        return;
+      }
+
+      const selectedText = window.getSelection()?.toString().trim() ?? "";
+      if (!selectedText) {
+        return;
+      }
+
+      mouseEvent.preventDefault();
+      const menu = new Menu();
+      menu.addItem((item) => {
+        item.setTitle("Translate selected text").onClick(() => {
+          void this.translateAndShowOverlay({
+            sourceText: selectedText,
+            dismissOnSelectionClear: true,
+            allowPin: false,
+          });
+        });
+      });
+      menu.showAtMouseEvent(mouseEvent);
+    });
+  }
+
+  private async runSelectionTranslationCommand(): Promise<void> {
+    const editor = this.getActiveEditor();
     if (!editor) {
       new Notice("No active markdown editor found.");
       return;
     }
 
-    const controller = new ObsidianTranslatorController(
-      new ObsidianEditorAdapter(editor),
-      this.storageAdapter,
-      this.toControllerConfig(),
-    );
+    const selectedText = editor.getSelection().trim();
+    if (!selectedText) {
+      new Notice("Select text first, then run translation.");
+      return;
+    }
 
-    if (mode === "selection") {
-      await controller.translateSelection();
-    } else {
-      await controller.translateParagraph();
+    await this.translateAndShowOverlay({
+      sourceText: selectedText,
+      dismissOnSelectionClear: true,
+      allowPin: true,
+      onPin: (translatedText) => {
+        this.pinToEditor(editor, translatedText);
+      },
+    });
+  }
+
+  private async runParagraphTranslationCommand(): Promise<void> {
+    const editor = this.getActiveEditor();
+    if (!editor) {
+      new Notice("No active markdown editor found.");
+      return;
+    }
+
+    const paragraph = new ObsidianEditorAdapter(editor).getParagraphText()?.trim() ?? "";
+    if (!paragraph) {
+      new Notice("No paragraph text found at cursor.");
+      return;
+    }
+
+    await this.translateAndShowOverlay({
+      sourceText: paragraph,
+      dismissOnSelectionClear: false,
+      allowPin: true,
+      onPin: (translatedText) => {
+        this.pinToEditor(editor, translatedText);
+      },
+    });
+  }
+
+  private async translateAndShowOverlay({
+    sourceText,
+    dismissOnSelectionClear,
+    allowPin,
+    onPin,
+  }: {
+    sourceText: string;
+    dismissOnSelectionClear: boolean;
+    allowPin: boolean;
+    onPin?: (translatedText: string) => void;
+  }): Promise<void> {
+    try {
+      const translatedText = await this.translateText(sourceText);
+      showTemporaryTranslationOverlay({
+        sourceText,
+        translatedText,
+        allowPin: allowPin && Boolean(onPin),
+        dismissOnSelectionClear,
+        onPin: onPin ? () => onPin(translatedText) : undefined,
+      });
+    } catch (error) {
+      new Notice(error instanceof Error ? error.message : String(error));
     }
   }
 
-  private toControllerConfig(): ObsidianTranslatorConfig {
+  private async translateText(sourceText: string): Promise<string> {
     const config = this.state.config;
-    return {
-      baseUrl: config.baseUrl,
-      model: config.model,
-      targetLang: config.targetLang,
-      sourceLang: config.sourceLang,
-      apiKey: config.apiKey,
-      placeholderText: config.placeholderText,
-    };
+    const response = await translate(
+      {
+        text: sourceText,
+        sourceLang: config.sourceLang ?? "auto",
+        targetLang: config.targetLang,
+        model: config.model,
+        baseUrl: config.baseUrl,
+        apiKey: config.apiKey,
+      },
+      { storage: this.storageAdapter },
+    );
+
+    return response.translatedText;
+  }
+
+  private getActiveEditor(): Editor | null {
+    const markdownView = this.app.workspace.getActiveViewOfType(MarkdownView);
+    return markdownView?.editor ?? null;
+  }
+
+  private pinToEditor(editor: Editor, translatedText: string): void {
+    const insertAt = editor.getCursor("to");
+    editor.replaceRange(`\n${translatedText}\n`, insertAt);
   }
 }
 
@@ -202,6 +334,18 @@ class TranslatorSettingTab extends PluginSettingTab {
         });
       });
   }
+}
+
+function isPdfTarget(element: HTMLElement | null): boolean {
+  if (!element) {
+    return false;
+  }
+
+  return Boolean(
+    element.closest(
+      ".pdf-viewer, .pdf-container, .pdf-embed, .workspace-leaf-content[data-type='pdf']",
+    ),
+  );
 }
 
 function mergeState(state: Partial<PluginState> | null): PluginState {

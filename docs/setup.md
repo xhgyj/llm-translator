@@ -39,8 +39,8 @@ The shared glossary lives in `shared/glossary.json`.
 
 ## Run the MVP
 
-- Obsidian: build `apps/obsidian-plugin`, then load that folder as a community plugin (`manifest.json` + `main.js`). Configure `baseUrl`, `model`, and `targetLang` in the plugin setting tab, then run `Translate selected text` or `Translate current paragraph`.
-- Browser: load `apps/browser-extension` as an unpacked extension after building. Open the extension popup to configure `baseUrl`, `model`, and `targetLang`, then use popup buttons or keyboard commands to trigger translation.
+- Obsidian: build `apps/obsidian-plugin`, then load that folder as a community plugin (`manifest.json` + `main.js`). Configure `baseUrl`, `model`, and `targetLang` in the plugin setting tab, then run `Translate selected text` / `Translate current paragraph` or use right-click on selected text. PDF selection is supported as a read-only translation popup (not written back to PDF).
+- Browser: load `apps/browser-extension` as an unpacked extension after building. Open the extension popup to configure `baseUrl`, `model`, and `targetLang`, then use popup buttons, keyboard commands, or right-click selected text. PDF selection uses a read-only translation popup page.
 - For both, translate a selection or a paragraph and confirm the result appears below the source text
 
 ## Helpful files

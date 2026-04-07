@@ -150,3 +150,5 @@ function getChromeApi(): ChromeApi {
 
   return chromeApi;
 }
+
+export {};

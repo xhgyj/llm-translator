@@ -4,6 +4,6 @@
   "version": "0.1.0",
   "minAppVersion": "1.5.0",
   "description": "Translate selected text or current paragraph with local/remote LLMs.",
-  "author": "llm-translator",
+  "author": "xhgyj",
   "isDesktopOnly": false
 }

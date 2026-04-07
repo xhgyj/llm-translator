@@ -74,7 +74,13 @@ type ContentScriptResponse =
       error: string;
     };
 
+type ContextMenuClickData = {
+  menuItemId: string;
+  selectionText?: string;
+};
+
 const CONFIG_STORAGE_KEY = "translatorConfig";
+const CONTEXT_MENU_TRANSLATE_SELECTION_ID = "llm-translator-translate-selection";
 
 const DEFAULT_TRANSLATOR_CONFIG: TranslatorConfig = {
   baseUrl: "http://localhost:11434/v1",
@@ -111,6 +117,8 @@ chromeApi?.commands?.onCommand?.addListener((command: string) => {
     void triggerTranslation("paragraph");
   }
 });
+
+registerSelectionContextMenu(chromeApi);
 
 async function handleRuntimeMessage(message: RuntimeMessage): Promise<RuntimeResponse> {
   if (message.type === "translate") {
@@ -166,6 +174,103 @@ async function triggerTranslation(mode: TriggerMode): Promise<void> {
   if (!typedResponse.ok) {
     throw new Error(typedResponse.error);
   }
+}
+
+function registerSelectionContextMenu(chromeRuntime: ChromeApi | undefined): void {
+  if (!chromeRuntime?.contextMenus) {
+    return;
+  }
+
+  chromeRuntime.contextMenus.create({
+    id: CONTEXT_MENU_TRANSLATE_SELECTION_ID,
+    title: "Translate selected text",
+    contexts: ["selection"],
+  });
+
+  chromeRuntime.contextMenus.onClicked.addListener((info, tab) => {
+    void handleContextMenuClick(info as ContextMenuClickData, tab);
+  });
+}
+
+async function handleContextMenuClick(
+  info: ContextMenuClickData,
+  tab: { id?: number; url?: string } | undefined,
+): Promise<void> {
+  if (
+    info.menuItemId !== CONTEXT_MENU_TRANSLATE_SELECTION_ID ||
+    !info.selectionText ||
+    !info.selectionText.trim()
+  ) {
+    return;
+  }
+
+  const config = await getTranslatorConfig();
+  const storage = createChromeStorageAdapter();
+  const result = await translate(
+    {
+      text: info.selectionText,
+      sourceLang: config.sourceLang ?? "auto",
+      targetLang: config.targetLang,
+      model: config.model,
+      baseUrl: config.baseUrl,
+      apiKey: config.apiKey,
+      forceRefresh: config.forceRefresh,
+    },
+    { storage },
+  );
+
+  if (isPdfUrl(tab?.url)) {
+    await openReadOnlyTranslationPopup(info.selectionText, result.translatedText);
+    return;
+  }
+
+  if (typeof tab?.id === "number") {
+    try {
+      const response = await getRequiredChromeApi().tabs.sendMessage(tab.id, {
+        type: "show-temporary-translation",
+        sourceText: info.selectionText,
+        translatedText: result.translatedText,
+      });
+
+      if (response && typeof response === "object" && "ok" in response) {
+        const typedResponse = response as ContentScriptResponse;
+        if (typedResponse.ok) {
+          return;
+        }
+      }
+    } catch {
+      // Fall back to popup rendering.
+    }
+  }
+
+  await openReadOnlyTranslationPopup(info.selectionText, result.translatedText);
+}
+
+async function openReadOnlyTranslationPopup(
+  sourceText: string,
+  translatedText: string,
+): Promise<void> {
+  const chromeRuntime = getRequiredChromeApi();
+  const baseUrl = chromeRuntime.runtime.getURL("result.html");
+  const url =
+    `${baseUrl}?source=${encodeURIComponent(sourceText)}` +
+    `&translated=${encodeURIComponent(translatedText)}`;
+
+  await chromeRuntime.windows.create({
+    url,
+    type: "popup",
+    width: 560,
+    height: 720,
+  });
+}
+
+function isPdfUrl(url: string | undefined): boolean {
+  if (!url) {
+    return false;
+  }
+
+  const lower = url.toLowerCase();
+  return lower.endsWith(".pdf") || lower.includes(".pdf?") || lower.includes("pdfjs");
 }
 
 async function getActiveTabId(chromeRuntime: ChromeApi): Promise<number> {
@@ -266,6 +371,7 @@ type ChromeApi = {
         ) => boolean | void,
       ): void;
     };
+    getURL(path: string): string;
   };
   storage: {
     local: {
@@ -281,6 +387,22 @@ type ChromeApi = {
     onCommand?: {
       addListener(listener: (command: string) => void): void;
     };
+  };
+  contextMenus?: {
+    create(details: { id: string; title: string; contexts: string[] }): void;
+    onClicked: {
+      addListener(
+        listener: (info: Record<string, unknown>, tab?: { id?: number; url?: string }) => void,
+      ): void;
+    };
+  };
+  windows: {
+    create(options: {
+      url: string;
+      type: "popup";
+      width: number;
+      height: number;
+    }): Promise<unknown>;
   };
 };
 

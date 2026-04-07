@@ -21,6 +21,10 @@ describe("background message handling", () => {
     | ((message: unknown, sender: unknown, sendResponse: (response: unknown) => void) => boolean | void)
     | undefined;
   let addListener: ReturnType<typeof vi.fn>;
+  let addCommandListener: ReturnType<typeof vi.fn>;
+  let createContextMenu: ReturnType<typeof vi.fn>;
+  let addContextMenuListener: ReturnType<typeof vi.fn>;
+  let createWindow: ReturnType<typeof vi.fn>;
 
   beforeEach(async () => {
     vi.resetModules();
@@ -30,11 +34,40 @@ describe("background message handling", () => {
     addListener = vi.fn((callback) => {
       listener = callback;
     });
+    addCommandListener = vi.fn();
+    createContextMenu = vi.fn();
+    addContextMenuListener = vi.fn();
+    createWindow = vi.fn(async () => ({}));
 
     vi.stubGlobal("chrome", {
       runtime: {
         onMessage: {
           addListener,
+        },
+        getURL: vi.fn((path: string) => `chrome-extension://test/${path}`),
+      },
+      commands: {
+        onCommand: {
+          addListener: addCommandListener,
+        },
+      },
+      contextMenus: {
+        create: createContextMenu,
+        onClicked: {
+          addListener: addContextMenuListener,
+        },
+      },
+      windows: {
+        create: createWindow,
+      },
+      tabs: {
+        query: vi.fn(async () => [{ id: 1 }]),
+        sendMessage: vi.fn(async () => ({ ok: true })),
+      },
+      storage: {
+        local: {
+          get: vi.fn(async () => ({})),
+          set: vi.fn(async () => undefined),
         },
       },
     });
@@ -49,6 +82,34 @@ describe("background message handling", () => {
   it("registers a translate listener on startup", () => {
     expect(addListener).toHaveBeenCalledTimes(1);
     expect(listener).toEqual(expect.any(Function));
+    expect(createContextMenu).toHaveBeenCalled();
+    expect(addContextMenuListener).toHaveBeenCalledTimes(1);
+  });
+
+  it("opens a read-only translation popup for pdf context-menu selections", async () => {
+    const [handler] = addContextMenuListener.mock.calls[0] ?? [];
+    expect(handler).toEqual(expect.any(Function));
+
+    await handler(
+      {
+        menuItemId: "llm-translator-translate-selection",
+        selectionText: "hello pdf",
+      },
+      {
+        id: 99,
+        url: "https://example.com/file.pdf",
+      },
+    );
+
+    await vi.waitFor(() => {
+      expect(translateMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          text: "hello pdf",
+        }),
+        expect.any(Object),
+      );
+      expect(createWindow).toHaveBeenCalledTimes(1);
+    });
   });
 
   it("responds to translate messages with the mocked translate result", async () => {

@@ -62,6 +62,11 @@ type RuntimeCommandMessage =
   | {
       type: "translate-paragraph";
       config: TranslationConfig;
+    }
+  | {
+      type: "show-temporary-translation";
+      sourceText: string;
+      translatedText: string;
     };
 
 export async function translateSelectionFromPage(
@@ -85,6 +90,7 @@ export async function translateSelectionFromPage(
         }
       : null,
     placeholderText: config.placeholderText,
+    allowPin: true,
   });
 }
 
@@ -109,6 +115,7 @@ export async function translateParagraphFromPage(
           }
         : null,
     placeholderText: config.placeholderText,
+    allowPin: false,
   });
 }
 
@@ -140,9 +147,13 @@ export function installContentScriptRuntime(): void {
 async function handleRuntimeCommand(
   command: RuntimeCommandMessage,
 ): Promise<RuntimeCommandResponse> {
-  command.type === "translate-selection"
-    ? await translateSelectionFromPage(command.config)
-    : await translateParagraphFromPage(command.config);
+  if (command.type === "translate-selection") {
+    await translateSelectionFromPage(command.config);
+  } else if (command.type === "translate-paragraph") {
+    await translateParagraphFromPage(command.config);
+  } else {
+    showTemporaryTranslatedSelection(command.sourceText, command.translatedText);
+  }
 
   return {
     ok: true,
@@ -153,10 +164,12 @@ async function translateFromSource({
   sourceNode,
   request,
   placeholderText,
+  allowPin,
 }: {
   sourceNode: Element | null;
   request: TranslateRequest | null;
   placeholderText?: string;
+  allowPin: boolean;
 }): Promise<HTMLElement | null> {
   if (!sourceNode || !request) {
     return null;
@@ -167,7 +180,9 @@ async function translateFromSource({
   try {
     const response = await sendTranslateMessage(request);
     if (response.ok) {
-      replacePlaceholder(placeholder, response.result.translatedText);
+      resolveTemporaryLayer(placeholder, sourceNode, response.result.translatedText, {
+        allowPin,
+      });
     } else {
       markPlaceholderFailed(placeholder, response.error);
     }
@@ -176,6 +191,22 @@ async function translateFromSource({
   }
 
   return placeholder;
+}
+
+function showTemporaryTranslatedSelection(sourceText: string, translatedText: string): void {
+  const selection = window.getSelection();
+  const text = getSelectionText(selection);
+  if (sourceText.trim().length === 0 || translatedText.trim().length === 0) {
+    return;
+  }
+
+  const sourceNode = getParagraphNodeFromSelection(selection);
+  if (!sourceNode || (text && text !== sourceText)) {
+    return;
+  }
+
+  const placeholder = insertPlaceholderBelow(sourceNode, "Translating...");
+  resolveTemporaryLayer(placeholder, sourceNode, translatedText, { allowPin: true });
 }
 
 async function sendTranslateMessage(request: TranslateRequest): Promise<TranslateResponse> {
@@ -205,11 +236,55 @@ function getRuntimeCommand(message: unknown): RuntimeCommandMessage | null {
     return candidate as RuntimeCommandMessage;
   }
 
+  if (
+    candidate.type === "show-temporary-translation" &&
+    typeof candidate.sourceText === "string" &&
+    typeof candidate.translatedText === "string"
+  ) {
+    return candidate as RuntimeCommandMessage;
+  }
+
   return null;
 }
 
 function getErrorMessage(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
+}
+
+function resolveTemporaryLayer(
+  placeholder: HTMLElement,
+  sourceNode: Element,
+  translatedText: string,
+  options: { allowPin: boolean },
+): void {
+  replacePlaceholder(placeholder, translatedText);
+
+  if (options.allowPin) {
+    const pinButton = document.createElement("button");
+    pinButton.type = "button";
+    pinButton.setAttribute("data-llm-translator-pin", "true");
+    pinButton.textContent = "Pin to page";
+    pinButton.addEventListener("click", () => {
+      const pinned = document.createElement("div");
+      pinned.setAttribute("data-llm-translator-pinned", "true");
+      pinned.textContent = translatedText;
+      sourceNode.insertAdjacentElement("afterend", pinned);
+      placeholder.remove();
+    });
+    placeholder.append(document.createTextNode(" "), pinButton);
+  }
+
+  const onSelectionChange = () => {
+    const selection = window.getSelection();
+    const hasActiveSelection =
+      !!selection && selection.rangeCount > 0 && selection.toString().trim().length > 0;
+    if (!hasActiveSelection) {
+      placeholder.remove();
+      document.removeEventListener("selectionchange", onSelectionChange);
+    }
+  };
+
+  document.addEventListener("selectionchange", onSelectionChange);
 }
 
 function getChromeApi(): ChromeApi | undefined {

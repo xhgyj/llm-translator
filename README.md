@@ -18,6 +18,13 @@ Monorepo for the MVP translation workflow used by the Obsidian plugin and browse
 - `apps/browser-extension` browser extension (background + content script + popup trigger/config)
 - `shared/glossary.json` default glossary data
 
+## Current UX
+
+- Right-click translation for selected text on both Obsidian and browser
+- Temporary translation layer that disappears when selection is cleared
+- Pin action to keep translation in note/page
+- PDF selection translation via read-only popup (no writeback)
+
 ## Docs
 
 - Setup: [docs/setup.md](docs/setup.md)

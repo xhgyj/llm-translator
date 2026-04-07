@@ -43,6 +43,17 @@ await build({
   legalComments: "none",
 });
 
+await build({
+  entryPoints: [resolve(appDir, "src/result.ts")],
+  outfile: resolve(distDir, "result.js"),
+  bundle: true,
+  format: "iife",
+  platform: "browser",
+  target: ["chrome114"],
+  sourcemap: false,
+  legalComments: "none",
+});
+
 execFileSync(
   process.execPath,
   ["node_modules/typescript/bin/tsc", "-p", "tsconfig.build.json"],

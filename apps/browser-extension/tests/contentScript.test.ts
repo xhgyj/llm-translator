@@ -100,6 +100,7 @@ describe("translateSelectionFromPage", () => {
     });
 
     const placeholder = document.body.querySelector("[data-llm-translator-placeholder='true']");
+    const pinButton = placeholder?.querySelector("[data-llm-translator-pin='true']");
 
     expect(sendMessage).toHaveBeenCalledTimes(1);
     expect(sendMessage).toHaveBeenCalledWith({
@@ -112,8 +113,49 @@ describe("translateSelectionFromPage", () => {
         baseUrl: "http://localhost:11434/v1",
       },
     });
-    expect(placeholder?.textContent).toBe("Translated text");
+    expect(pinButton).not.toBeNull();
+    expect(placeholder?.textContent).toContain("Translated text");
     expect(placeholder?.dataset.llmTranslatorState).toBe("resolved");
+  });
+
+  it("removes the temporary translation layer when selection is cleared", async () => {
+    const paragraph = document.createElement("p");
+    paragraph.textContent = "Hello world";
+    document.body.append(paragraph);
+
+    const range = document.createRange();
+    range.selectNodeContents(paragraph);
+    const selection = window.getSelection();
+    selection?.removeAllRanges();
+    selection?.addRange(range);
+
+    const sendMessage = vi.fn(async () => ({
+      ok: true as const,
+      result: {
+        translatedText: "Temporary translated text",
+        fromCache: false,
+        latencyMs: 10,
+      },
+    }));
+    vi.stubGlobal("chrome", {
+      runtime: {
+        sendMessage,
+      },
+    });
+
+    await translateSelectionFromPage({
+      placeholderText: "Translating...",
+      targetLang: "zh",
+      model: "qwen2.5",
+      baseUrl: "http://localhost:11434/v1",
+    });
+
+    expect(document.body.querySelector("[data-llm-translator-placeholder='true']")).not.toBeNull();
+
+    selection?.removeAllRanges();
+    document.dispatchEvent(new Event("selectionchange"));
+
+    expect(document.body.querySelector("[data-llm-translator-placeholder='true']")).toBeNull();
   });
 });
 

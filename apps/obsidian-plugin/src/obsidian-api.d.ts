@@ -19,6 +19,7 @@ declare module "obsidian" {
   export class App {
     workspace: {
       getActiveViewOfType<T>(type: new (...args: never[]) => T): T | null;
+      on(event: string, callback: (...args: unknown[]) => void): unknown;
     };
   }
 
@@ -33,6 +34,12 @@ declare module "obsidian" {
       checkCallback?: (checking: boolean) => boolean | void;
     }): void;
     addSettingTab(tab: PluginSettingTab): void;
+    registerEvent(eventRef: unknown): void;
+    registerDomEvent(
+      el: Window | Document | HTMLElement,
+      type: string,
+      callback: (evt: Event) => void,
+    ): void;
     loadData(): Promise<unknown>;
     saveData(data: unknown): Promise<void>;
   }
@@ -46,6 +53,16 @@ declare module "obsidian" {
 
   export class Notice {
     constructor(message: string);
+  }
+
+  export class Menu {
+    addItem(callback: (item: MenuItem) => void): void;
+    showAtMouseEvent(event: MouseEvent): void;
+  }
+
+  export class MenuItem {
+    setTitle(title: string): this;
+    onClick(callback: () => void): this;
   }
 
   export class TextComponent {
