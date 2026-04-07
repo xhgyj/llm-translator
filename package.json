@@ -6,7 +6,7 @@
     "apps/*"
   ],
   "scripts": {
-    "build": "npm run -ws build",
-    "test": "npm run -ws test"
+    "build": "npm run --workspaces build",
+    "test": "npm run --workspaces test"
   }
 }
