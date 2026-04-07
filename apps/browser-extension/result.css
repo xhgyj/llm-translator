@@ -104,4 +104,17 @@ h2 {
   .result-source {
     background: linear-gradient(135deg, #111827, #0f172a);
   }
+
+  .result-translated {
+    border-color: color-mix(in srgb, var(--result-accent) 45%, #1e293b);
+    background: linear-gradient(
+      135deg,
+      color-mix(in srgb, var(--result-accent) 24%, #111827),
+      #1e293b
+    );
+  }
+
+  .result-translated .result-text {
+    color: #f8fafc;
+  }
 }

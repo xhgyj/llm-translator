@@ -25,6 +25,7 @@ describe("background message handling", () => {
   let createContextMenu: ReturnType<typeof vi.fn>;
   let addContextMenuListener: ReturnType<typeof vi.fn>;
   let createWindow: ReturnType<typeof vi.fn>;
+  let sendTabMessage: ReturnType<typeof vi.fn>;
 
   beforeEach(async () => {
     vi.resetModules();
@@ -38,6 +39,7 @@ describe("background message handling", () => {
     createContextMenu = vi.fn();
     addContextMenuListener = vi.fn();
     createWindow = vi.fn(async () => ({}));
+    sendTabMessage = vi.fn(async () => ({ ok: true }));
 
     vi.stubGlobal("chrome", {
       runtime: {
@@ -62,7 +64,7 @@ describe("background message handling", () => {
       },
       tabs: {
         query: vi.fn(async () => [{ id: 1 }]),
-        sendMessage: vi.fn(async () => ({ ok: true })),
+        sendMessage: sendTabMessage,
       },
       storage: {
         local: {
@@ -109,6 +111,30 @@ describe("background message handling", () => {
         expect.any(Object),
       );
       expect(createWindow).toHaveBeenCalledTimes(1);
+      const popupCall = createWindow.mock.calls[0]?.[0] as { url: string } | undefined;
+      expect(popupCall?.url).toContain("mode=pdf");
+    });
+  });
+
+  it("uses web mode popup for non-pdf context-menu fallback", async () => {
+    const [handler] = addContextMenuListener.mock.calls[0] ?? [];
+    expect(handler).toEqual(expect.any(Function));
+
+    await handler(
+      {
+        menuItemId: "llm-translator-translate-selection",
+        selectionText: "hello web",
+      },
+      {
+        url: "https://example.com/article",
+      },
+    );
+
+    await vi.waitFor(() => {
+      expect(createWindow).toHaveBeenCalledTimes(1);
+      const popupCall = createWindow.mock.calls[0]?.[0] as { url: string } | undefined;
+      expect(popupCall?.url).toContain("mode=web");
+      expect(sendTabMessage).not.toHaveBeenCalled();
     });
   });
 

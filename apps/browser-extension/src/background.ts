@@ -79,6 +79,8 @@ type ContextMenuClickData = {
   selectionText?: string;
 };
 
+type ReadOnlyPopupMode = "pdf" | "web";
+
 const CONFIG_STORAGE_KEY = "translatorConfig";
 const CONTEXT_MENU_TRANSLATE_SELECTION_ID = "llm-translator-translate-selection";
 
@@ -220,7 +222,7 @@ async function handleContextMenuClick(
   );
 
   if (isPdfUrl(tab?.url)) {
-    await openReadOnlyTranslationPopup(info.selectionText, result.translatedText);
+    await openReadOnlyTranslationPopup(info.selectionText, result.translatedText, "pdf");
     return;
   }
 
@@ -243,18 +245,20 @@ async function handleContextMenuClick(
     }
   }
 
-  await openReadOnlyTranslationPopup(info.selectionText, result.translatedText);
+  await openReadOnlyTranslationPopup(info.selectionText, result.translatedText, "web");
 }
 
 async function openReadOnlyTranslationPopup(
   sourceText: string,
   translatedText: string,
+  mode: ReadOnlyPopupMode,
 ): Promise<void> {
   const chromeRuntime = getRequiredChromeApi();
   const baseUrl = chromeRuntime.runtime.getURL("result.html");
   const url =
     `${baseUrl}?source=${encodeURIComponent(sourceText)}` +
-    `&translated=${encodeURIComponent(translatedText)}`;
+    `&translated=${encodeURIComponent(translatedText)}` +
+    `&mode=${encodeURIComponent(mode)}`;
 
   await chromeRuntime.windows.create({
     url,
