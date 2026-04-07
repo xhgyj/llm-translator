@@ -1,4 +1,4 @@
-﻿import { describe, expect, it, vi } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import type { StorageAdapter, TranslateRequest, TranslateResponse } from "@llm-translator/core";
 import { ObsidianTranslatorController } from "../src/main";
 
@@ -56,10 +56,7 @@ describe("ObsidianTranslatorController.translateParagraph", () => {
       model: "qwen2.5",
       baseUrl: "http://localhost:11434/v1",
     });
-    expect(editor.replacePlaceholder).toHaveBeenCalledWith(
-      "paragraph-placeholder",
-      expect.stringMatching(/\S/),
-    );
+    expect(editor.replacePlaceholder).toHaveBeenCalledWith("paragraph-placeholder", "你好，段落");
     expect(editor.markPlaceholderFailed).not.toHaveBeenCalled();
   });
 
