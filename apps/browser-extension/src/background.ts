@@ -1,8 +1,6 @@
 import { translate, type TranslateRequest } from "@llm-translator/core";
 import { createChromeStorageAdapter } from "./storageAdapter.js";
 
-declare const chrome: ChromeApi;
-
 type TranslateMessage = {
   type: "translate";
   request: TranslateRequest;
@@ -18,7 +16,9 @@ type TranslateMessageResponse =
       error: string;
     };
 
-chrome.runtime.onMessage.addListener((message: unknown, _sender, sendResponse) => {
+const chromeApi = getChromeApi();
+
+chromeApi?.runtime.onMessage.addListener((message: unknown, _sender, sendResponse) => {
   const translateMessage = getTranslateMessage(message);
   if (!translateMessage) {
     return undefined;
@@ -72,3 +72,7 @@ type ChromeApi = {
     };
   };
 };
+
+function getChromeApi(): ChromeApi | undefined {
+  return (globalThis as { chrome?: ChromeApi }).chrome;
+}

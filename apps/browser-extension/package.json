@@ -7,7 +7,7 @@
   "types": "dist/background.d.ts",
   "scripts": {
     "prebuild": "npm run -w @llm-translator/core build",
-    "build": "node -e \"require('node:fs').rmSync('dist',{recursive:true,force:true})\" && tsc -p tsconfig.json",
+    "build": "node scripts/build.mjs",
     "pretest": "npm run -w @llm-translator/core build",
     "test": "vitest run --environment jsdom"
   },

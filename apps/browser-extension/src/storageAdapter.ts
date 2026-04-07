@@ -1,11 +1,9 @@
 import type { Glossary, Settings, StorageAdapter, TranslateResponse } from "@llm-translator/core";
 
-declare const chrome: ChromeApi;
-
 type ChromeStorageRecord = {
   glossary?: Glossary;
   settings?: Settings;
-  cache?: Record<string, CachedTranslateResponse>;
+  [key: string]: Glossary | Settings | CachedTranslateResponse | undefined;
 };
 
 type CachedTranslateResponse = {
@@ -26,62 +24,53 @@ const DEFAULT_SETTINGS: Settings = {
 export function createChromeStorageAdapter(): StorageAdapter {
   return {
     async getGlossary() {
-      const data = await readStorage();
-      return data.glossary ?? DEFAULT_GLOSSARY;
+      const chromeApi = getChromeApi();
+      const data = await chromeApi.storage.local.get("glossary");
+      return (data.glossary as Glossary | undefined) ?? DEFAULT_GLOSSARY;
     },
     async saveGlossary(glossary) {
-      await chrome.storage.local.set({ glossary });
+      const chromeApi = getChromeApi();
+      await chromeApi.storage.local.set({ glossary });
     },
     async getCache(key) {
-      const data = await readStorage();
-      const entry = data.cache?.[key];
+      const chromeApi = getChromeApi();
+      const storageKey = getCacheStorageKey(key);
+      const data = await chromeApi.storage.local.get(storageKey);
+      const entry = data[storageKey] as CachedTranslateResponse | undefined;
       if (!entry) {
         return null;
       }
 
       if (entry.expiresAt <= Date.now()) {
-        await removeCacheEntry(key);
+        await chromeApi.storage.local.remove(storageKey);
         return null;
       }
 
       return entry.value;
     },
     async setCache(key, value, ttlMs) {
-      const data = await readStorage();
-      const cache = data.cache ?? {};
-
-      cache[key] = {
-        value,
-        expiresAt: Date.now() + ttlMs,
-      };
-
-      await chrome.storage.local.set({ cache });
+      const chromeApi = getChromeApi();
+      await chromeApi.storage.local.set({
+        [getCacheStorageKey(key)]: {
+          value,
+          expiresAt: Date.now() + ttlMs,
+        },
+      });
     },
     async getSettings() {
-      const data = await readStorage();
-      return data.settings ?? DEFAULT_SETTINGS;
+      const chromeApi = getChromeApi();
+      const data = await chromeApi.storage.local.get("settings");
+      return (data.settings as Settings | undefined) ?? DEFAULT_SETTINGS;
     },
     async saveSettings(settings) {
-      await chrome.storage.local.set({ settings });
+      const chromeApi = getChromeApi();
+      await chromeApi.storage.local.set({ settings });
     },
   };
 }
 
-async function readStorage(): Promise<ChromeStorageRecord> {
-  const data = await chrome.storage.local.get(["glossary", "settings", "cache"]);
-  return data as ChromeStorageRecord;
-}
-
-async function removeCacheEntry(key: string): Promise<void> {
-  const data = await readStorage();
-  const cache = data.cache ?? {};
-
-  if (!(key in cache)) {
-    return;
-  }
-
-  delete cache[key];
-  await chrome.storage.local.set({ cache });
+function getCacheStorageKey(key: string): string {
+  return `cache:${key}`;
 }
 
 type ChromeApi = {
@@ -89,6 +78,16 @@ type ChromeApi = {
     local: {
       get(keys: string[] | string): Promise<ChromeStorageRecord>;
       set(items: Partial<ChromeStorageRecord>): Promise<void>;
+      remove(keys: string[] | string): Promise<void>;
     };
   };
 };
+
+function getChromeApi(): ChromeApi {
+  const chromeApi = (globalThis as { chrome?: ChromeApi }).chrome;
+  if (!chromeApi) {
+    throw new Error("chrome.storage is not available");
+  }
+
+  return chromeApi;
+}
