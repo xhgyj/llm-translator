@@ -127,12 +127,12 @@ export default class LlmTranslatorPlugin extends Plugin {
     this.registerDomEvent(document, "contextmenu", (event: Event) => {
       const mouseEvent = event as MouseEvent;
       const target = mouseEvent.target as HTMLElement | null;
-      if (!isPdfTarget(target)) {
+      const selectedText = window.getSelection()?.toString().trim() ?? "";
+      if (!selectedText) {
         return;
       }
 
-      const selectedText = window.getSelection()?.toString().trim() ?? "";
-      if (!selectedText) {
+      if (!isPdfTarget(target) && !isPdfWorkspaceActive()) {
         return;
       }
 
@@ -153,12 +153,22 @@ export default class LlmTranslatorPlugin extends Plugin {
 
   private async runSelectionTranslationCommand(): Promise<void> {
     const editor = this.getActiveEditor();
-    if (!editor) {
-      new Notice("No active markdown editor found.");
+    const editorSelection = editor?.getSelection().trim() ?? "";
+    if (editorSelection) {
+      await this.translateAndShowOverlay({
+        sourceText: editorSelection,
+        dismissOnSelectionClear: true,
+        allowPin: true,
+        onPin: (translatedText) => {
+          if (editor) {
+            this.pinToEditor(editor, translatedText);
+          }
+        },
+      });
       return;
     }
 
-    const selectedText = editor.getSelection().trim();
+    const selectedText = window.getSelection()?.toString().trim() ?? "";
     if (!selectedText) {
       new Notice("Select text first, then run translation.");
       return;
@@ -167,10 +177,12 @@ export default class LlmTranslatorPlugin extends Plugin {
     await this.translateAndShowOverlay({
       sourceText: selectedText,
       dismissOnSelectionClear: true,
-      allowPin: true,
-      onPin: (translatedText) => {
-        this.pinToEditor(editor, translatedText);
-      },
+      allowPin: Boolean(editor),
+      onPin: editor
+        ? (translatedText) => {
+            this.pinToEditor(editor, translatedText);
+          }
+        : undefined,
     });
   }
 
@@ -344,6 +356,14 @@ function isPdfTarget(element: HTMLElement | null): boolean {
   return Boolean(
     element.closest(
       ".pdf-viewer, .pdf-container, .pdf-embed, .workspace-leaf-content[data-type='pdf']",
+    ),
+  );
+}
+
+function isPdfWorkspaceActive(): boolean {
+  return Boolean(
+    document.querySelector(
+      ".workspace-leaf.mod-active .workspace-leaf-content[data-type='pdf']",
     ),
   );
 }
