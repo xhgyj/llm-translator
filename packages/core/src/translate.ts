@@ -1,6 +1,6 @@
 import { createCacheKey } from "./cacheKey.js";
 import { buildGlossaryPrompt } from "./glossary.js";
-import { AuthError, ConfigError, RateLimitError } from "./errors.js";
+import { AuthError, ConfigError } from "./errors.js";
 import { callOpenAICompatible } from "./openaiClient.js";
 import { retry } from "./retry.js";
 import type {
@@ -20,6 +20,7 @@ export async function translate(
   deps: TranslateDeps,
 ): Promise<TranslateResponse> {
   validateRequest(req);
+  const normalizedBaseUrl = normalizeBaseUrl(req.baseUrl);
 
   const [settings, glossary] = await Promise.all([
     deps.storage.getSettings(),
@@ -32,7 +33,7 @@ export async function translate(
     sourceLang: req.sourceLang,
     targetLang: req.targetLang,
     model: req.model,
-    baseUrl: req.baseUrl,
+    baseUrl: normalizedBaseUrl,
     glossaryVersion: glossary.version,
     promptVersion: settings.promptVersion,
   });
@@ -43,6 +44,7 @@ export async function translate(
       return {
         ...cached,
         fromCache: true,
+        latencyMs: 0,
       };
     }
   }
@@ -53,7 +55,7 @@ export async function translate(
   const translatedText = await retry(
     () =>
       callOpenAICompatible({
-        baseUrl: req.baseUrl,
+        baseUrl: normalizedBaseUrl,
         model: req.model,
         apiKey: req.apiKey,
         messages,
@@ -78,6 +80,10 @@ export async function translate(
   await deps.storage.setCache(cacheKey, response, settings.cacheTtlMs);
 
   return response;
+}
+
+function normalizeBaseUrl(baseUrl: string): string {
+  return baseUrl.trim().replace(/\/+$/, "");
 }
 
 function validateRequest(req: TranslateRequest): void {
